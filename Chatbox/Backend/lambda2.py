@@ -76,7 +76,7 @@ def Lambda2throughDynamoDB(RestaurantIDs, Decode_Message):
 def Lambda2toSNS(Decode_Message, SNS_Message):
     sns = boto3.client("sns", region_name="us-east-1")
     phonenumber = Decode_Message['Telephone']
-    #sns.publish(PhoneNumber=phonenumber, Message=SNS_Message)
+    sns.publish(PhoneNumber=phonenumber, Message=SNS_Message)
     VictoryScreech = "Recommndation has Send to "+ phonenumber
     print("[FINISH] ",VictoryScreech )
     return VictoryScreech
