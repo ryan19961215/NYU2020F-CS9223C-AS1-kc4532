@@ -1,49 +1,48 @@
-import json
 import boto3
 import time
-import os
-
-def lambda_handler(event, context):
-    userid, text = get_info_from_request(event)
-    if (userid is None) or (text is None):
-        return get_response("Unable to get user ID or text.",-1)
-    chatbot_text, userid = chatbot_response(userid, text)
-    return get_response(chatbot_text, userid)
  
-def chatbot_response(userid, text):
+def Lambda0throughLex(userid, usertext):
     client = boto3.client('lex-runtime')
-    print("TEXT:",text)
+    print("TEXT:",usertext)
     try:
-        lex_response = client.post_text(botName ='Dining_Concierge_Chatbot', botAlias = '$LATEST', userId = str(userid), inputText = text, sessionAttributes={}, requestAttributes={},)
-        print("LEX JSON:",lex_response)
-        message = lex_response['message']
-        print("RESPONSE:",message)
-        return message , userid
+        lex_response = client.post_text(
+            botName ='Dining_Concierge_Chatbot',
+            botAlias = '$LATEST',
+            userId = str(userid),
+            inputText = usertext,
+            sessionAttributes={},
+            requestAttributes={},
+        )
+        print("LEXRESPONSE_ORI:",lex_response)
+        servertext = lex_response['message']
+        print("LEXRESPONSE_TRE:", servertext)
+        return userid, servertext
     except Exception as exception:
         print("EXCEPT:", exception)
-        return None , -2
+        return -5, 'lambda or API error, please come back later. Error number: 5'
 
-def get_info_from_request(event):
+def APItoLambda0(event):
     body = event
-    print ("BODY:",body)
+    print ("APIMESSAGE_ORI:",body)
     if "messages" not in body:
-        return -6 , 'lambda or API error, please come back later. Error number: 1'
+        return -1 , 'API error. Error number: 1'
     messages = event["messages"]
     if not isinstance(messages,list) or len(messages) < 1:
-        return -4 , 'lambda or API error, please come back later. Error number: 2'
+        return -2 , 'JS error. Error number: 2'
     message = messages[0]
     if "unstructured" not in message:
-        return -5 , 'lambda or API error, please come back later. Error number: 3'
+        return -3 , 'JS or API error. Error number: 3'
     if "text" not in message["unstructured"] or "id" not in message["unstructured"]:
-        return -6 , 'lambda or API error, please come back later. Error number: 4'
+        return -4 , 'JS or API error. Error number: 4'
     userid = message["unstructured"]["id"]
     text = message["unstructured"]["text"]
     return userid, text
 
-def get_response(text,userid):
-    body = {
-        "messages":[
-            {
+def ResponseFormat(userid, text):
+    response = {
+        "status code": 200,
+        "body": {
+            "messages":[{
                 "type":"unstructured",
                 "unstructured": {
                     "id": userid,
@@ -51,10 +50,13 @@ def get_response(text,userid):
                     "time": time.time()
                 }
             }]
-    }
-    response = {
-        "status code": 200,
-        "body": body
+        }
     }
     return response
-        
+
+def lambda_handler(event, context):
+    userid, usertext = APItoLambda0(event)
+    if (userid is None) or (usertext is None):
+        return ResponseFormat(-6 , "Unable to get user ID or text.")
+    userid, servertext = Lambda0throughLex(userid, usertext)
+    return ResponseFormat(userid, servertext)
